@@ -31,26 +31,24 @@ class Grid:
 		[1,2,0,0,0,7,4,0,0],
 		[0,4,9,2,0,6,0,0,7]]
 
-	#color dictionary
-
+	# Display numbers on the grid
 	def draw(self, surface, cursor):
-		#display_surface = pygame.display.set_mode((50, 50 ))
 		global board2
-		x=25
-		y=25
+		x=50
+		y=50
 		font = pygame.font.Font('freesansbold.ttf', 30) 
 		cursor.draw(surface)
 
 		for m in self.highlight(cursor.pos):
-			pygame.draw.rect(surface,(192,192,192),(m[1] * 50,m[0] * 50,50,50))
+			pygame.draw.rect(surface,(192,192,192),(((m[1] + 1) * 50) - 25,((m[0] + 1) * 50) - 25,50,50))
 
 		for i in range(self.rows):
 			for j in range(self.cols):
 				if self.board[i][j] == 0:
 					text = font.render("", True,self.fontcolor) 
-				elif i == (cursor.pos[1]//50) and j == (cursor.pos[0]//50) and self.check_board(board2,i,j) == True and self.num != "":
+				elif i == (cursor.pos[1]//50) - 1 and j == (cursor.pos[0]//50) - 1 and self.check_board(board2,i,j) == True and self.num != "":
 					text = font.render(str(self.board[i][j]), True,[255,0,0])
-				elif i == (cursor.pos[1]//50) and j == (cursor.pos[0]//50) and self.check_board(board2,i,j) == False and self.num != "":
+				elif i == (cursor.pos[1]//50) - 1 and j == (cursor.pos[0]//50) - 1 and self.check_board(board2,i,j) == False and self.num != "":
 					text = font.render(str(self.board[i][j]), True,[0,255,0])
 				else:
 					text = font.render(str(self.board[i][j]), True,self.fontcolor) 
@@ -58,15 +56,17 @@ class Grid:
 				textRect.center = (x, y) 
 				surface.blit(text, textRect)
 				x += 50
-			x = 25
+			x = 50
 			y += 50
 
+	# Display added number on the grid
 	def update_board(self, pos):
-		global board2
-		x = pos[1] // 50
-		y = pos[0] // 50
+		# global board2
+		x = (pos[1] // 50) - 1
+		y = (pos[0] // 50) - 1
 		self.board[x][y] = self.num
 
+	# Check whether there are any blank fields left, if not - end game
 	def end_of_game(self):
 		count = 0
 		for i in range(self.rows):
@@ -79,10 +79,12 @@ class Grid:
 		else:
 			return False
 
+	# Highliht repetitions of the current value on the grid
 	def highlight(self, pos):
 		same_num = set()
-		x = pos[1] // 50
-		y = pos[0] // 50
+		x = (pos[1] // 50) - 1
+		y = (pos[0] // 50) - 1
+		print(pos[0], pos[1])
 		for i in range(self.rows):
 			for j in range(self.cols):
 				if (str(self.board[i][j]) == self.num or str(self.board[i][j]) == self.board[x][y]) and self.board[i][j] != 0:
@@ -92,13 +94,15 @@ class Grid:
 
 		return same_num
 
+	# Check if the given number is correct for this  field
 	def check_board(self, solved_board, x, y):
 		if str(solved_board[x][y]) != self.num:
 			return True
 		elif str(solved_board[x][y]) == self.num:
 			return False
 		
-	def actions(self,cursor):
+	# User actions - keyboard, mouse
+	def actions(self, cursor, offset):
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				pygame.quit()
@@ -157,67 +161,69 @@ class Grid:
 					self.dirnx = 0
 					self.dirny = 0
 					self.num = ""
-
-				
-			cursor.move(self.dirnx,self.dirny)
+	
+			cursor.move(self.dirnx, self.dirny, offset)
 		return True
+
 
 class Box:
 
-	def __init__(self,pos = (225,225), dirny = 0, dirnx = 0):
+	def __init__(self, pos = (250, 250), dirny = 0, dirnx = 0):
 		self.pos = pos
 		self.dirny = dirny
 		self.dirnx = dirnx
 
-	def draw(self,surface):
-		pygame.draw.rect(surface,(192,192,192),(self.pos[0]-25,self.pos[1]-25,50,50))
-		#pygame.draw.rect(surface,(255, 255, 255),(self.pos[0]-20,self.pos[1]-20,40,40))
+	# Draw cursor
+	def draw(self, surface):
+		pygame.draw.rect(surface, (176, 216, 230), (self.pos[0] - 25, self.pos[1] - 25, 50, 50))
 
-	def move(self, dirnx, dirny):
+	# Move cursor
+	def move(self, dirnx, dirny, offset):
 		self.dirnx = dirnx
 		self.dirny = dirny
 
-		if (self.pos[0] + self.dirnx) >= 450 and (self.pos[1] + self.dirny) <= 0:
+		if (self.pos[0] + self.dirnx) >= (450 + offset) and (self.pos[1] + self.dirny) <= (0 + offset):
 			self.dirnx = 0
 			self.dirny = 0
-		elif (self.pos[0] + self.dirnx) <= 0 and (self.pos[1] + self.dirny) > 0 and (self.pos[1] + self.dirny) < 450:
+		elif (self.pos[0] + self.dirnx) <= (0 + offset) and (self.pos[1] + self.dirny) > (0 + offset) and (self.pos[1] + self.dirny) < (450 + offset):
 			self.dirnx = 0
 			self.dirny = dirny
-		elif (self.pos[1] + self.dirny) <= 0 and (self.pos[0] + self.dirnx) > 0 and (self.pos[0] + self.dirnx) < 450:
+		elif (self.pos[1] + self.dirny) <= (0 + offset) and (self.pos[0] + self.dirnx) > (0 + offset) and (self.pos[0] + self.dirnx) < (450 + offset):
 			self.dirny = 0
 			self.dirnx = dirnx
-		elif (self.pos[0] + self.dirnx) >= 450 and (self.pos[1] + self.dirny) > 0 and (self.pos[1] + self.dirny) < 450:
+		elif (self.pos[0] + self.dirnx) >= (450 + offset) and (self.pos[1] + self.dirny) > (0 + offset) and (self.pos[1] + self.dirny) < (450 + offset):
 			self.dirnx = 0
 			self.dirny = dirny
-		elif (self.pos[1] + self.dirny) >= 450 and (self.pos[0] + self.dirnx) > 0 and (self.pos[0] + self.dirnx) < 450:
+		elif (self.pos[1] + self.dirny) >= (450 + offset) and (self.pos[0] + self.dirnx) > (0 + offset) and (self.pos[0] + self.dirnx) < (450 + offset):
 			self.dirny = 0
 			self.dirnx = dirnx
 
 		self.pos = (self.pos[0] + self.dirnx, self.pos[1] + self.dirny)
 
-def drawGrid(w, rows, surface):
-	global g
-	sizeBtwn = w // rows
+# Drawing grid lines
+def drawGrid(surface):
+	global g, rows, width, rows, offset
 
-	x = 0
-	y = 0
-	for l in range(rows):		
+	sizeBtwn = (width - 50) // rows
+	x = 25
+	y = 25
+
+	for l in range(rows + 1):		
+		if l == 3 or l == 6:
+			pygame.draw.line(surface, g.fontcolor, (x, 0  + offset), (x, width  - offset),3)
+			pygame.draw.line(surface, g.fontcolor, (0 + offset, y), (width  - offset, y),3)
+		else:
+			pygame.draw.line(surface, g.fontcolor, (x, 0  + offset), (x, width  - offset))
+			pygame.draw.line(surface, g.fontcolor, (0  + offset, y), (width  - offset, y))
+
 		x += sizeBtwn
 		y += sizeBtwn
-		if l == 2 or l == 5:
-			pygame.draw.line(surface, g.fontcolor, (x, 0), (x, w),3)
-			pygame.draw.line(surface, g.fontcolor, (0, y), (w, y),3)
-		else:
-			pygame.draw.line(surface, g.fontcolor, (x, 0), (x, w))
-			pygame.draw.line(surface, g.fontcolor, (0, y), (w, y))
 
 def redrawWindow(surface):
-	global rows, width, g, b
-	width = 450
-	rows = 9
+	global rows, width, g, b, height
 	surface.fill(g.backcolor)
 	g.draw(surface, b)
-	drawGrid(width, rows, surface)
+	drawGrid(surface)
 	pygame.display.update()
 
 def solve(board):
@@ -278,9 +284,12 @@ def message_box(subject, content):
 		pass
 
 def main():
-	global width, rows, g, b, board2
-	width = 450
-	win = pygame.display.set_mode((width, width))
+	global width, rows, g, b, board2, height, offset
+	width = 500
+	height = 650
+	rows = 9
+	offset = 25
+	win = pygame.display.set_mode((width, height))
 	flag = True
 	g = Grid()
 	b = Box()
@@ -299,11 +308,12 @@ def main():
 	while flag:
 		pygame.time.delay(50)
 		clock.tick(10)
-		flag = g.actions(b)
+		flag = g.actions(b, offset)
 		if g.end_of_game():
 			message_box("You Won!!", "Congratulations!")
 			break
 		redrawWindow(win)
 
 #Main Program
-main()
+if __name__ == "__main__":
+	main()
