@@ -27,9 +27,6 @@ class Square(ABC):
 class Grid(Square):
 
     OFFSET = 25
-    # BLACK = [0, 0, 0]
-    # ORANGE = [255, 129, 0]
-    # WHITE = [255, 255, 255]
 
     def __init__(self, width, pos_x, pos_y, window):
         super().__init__(width, pos_x, pos_y)
@@ -63,9 +60,6 @@ class Grid(Square):
 
 # Each field has got only one position
 class Field(Square):
-
-    BLACK = [0, 0, 0]
-
     def __init__(self, width, pos_x, pos_y, value, window, const_value):
         super().__init__(width, pos_x, pos_y)
         self.value = value
@@ -148,12 +142,6 @@ class Info(Grid):
 
 
 class InfoField(Field):
-
-    DARK_GRAY = [180, 180, 180]
-    BLACK = [0, 0, 0]
-    ORANGE = [255, 129, 0]
-    WHITE = [255, 255, 255]
-
     def __init__(self, width, pos_x, pos_y, value, window, const_value, available):
         super().__init__(width, pos_x, pos_y, value, window, const_value)
         self.available = available
@@ -188,9 +176,6 @@ class InfoField(Field):
 
 # Reads the current value of the field, moves around the grid
 class Cursor():
-
-    DARK_GRAY = [180, 180, 180]
-
     def __init__(self, width, pos_num, window, positions):
         self.width = width
         self.pos_num = pos_num
@@ -225,9 +210,6 @@ class Cursor():
         
 
 class Game:
-
-    LIGHT_BLUE = [52, 204, 255]
-
     def __init__(self, width = 500, height = 700):
         self.width = width
         self.height = height
