@@ -1,9 +1,12 @@
+from threading import local
 import pygame
 import time
 from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox
 from abc import ABC, abstractmethod
+import random
+
 
 pygame.init()
 pygame.font.init()
@@ -13,6 +16,8 @@ BLACK = [0, 0, 0]
 ORANGE = [255, 129, 0]
 WHITE = [255, 255, 255]
 DARK_GRAY = [180, 180, 180]
+
+N = 9
 
 class Square(ABC):
     def __init__(self, width, pos_x, pos_y):
@@ -207,7 +212,91 @@ class Cursor():
             self.pos_num += delta
         elif delta == -9 and self.pos_num > 9:
             self.pos_num += delta
-        
+
+
+class SudokuGenerator:
+    def __init__(self):
+        self.values_grid = []
+        self.grid_to_solve = []
+        self.number_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.counter = 0
+        self.size = 9
+        if self.algorithm():
+            self.solvable = True
+        else:
+            self.solvable = False
+
+    # Fill the grid with zeros
+    def initialize_grid(self):
+        for _ in range(9):
+            self.values_grid.append([0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+    # Check if the grid is full
+    def check_grid(self, row, col, value):
+        for i in range(9):
+            if self.values_grid[row][i] == value:
+                return False
+
+        for i in range(9):
+            if self.values_grid[i][col] == value:
+                return False
+
+        start_row = row - row % 3
+        start_col = col - col % 3
+        for i in range(3):
+            for j in range(3):
+                if self.values_grid[start_row + i][start_col + j] == value:
+                    return False
+
+        return True
+
+    def prepare_grid(self):
+        self.grid_to_solve = self.values_grid
+        # 3 Levels of difficulty
+        # 80% filled
+        # 60% filled
+        # 40% filled
+        # Clear random cells one by one - simultanously check if the grid is still solvable
+
+    def fill_grid(self, row, col):
+        # Check if it's already row = 8 and column = 9, if so -> stop bactracking
+        if (row == self.size - 1 and col == self.size):
+            return True
+        # Check if this is the end of a row
+        if col == self.size:
+            row += 1
+            col = 0
+        # Check if the current cell has got any number greater than 0, if yes -> move to the next column
+        if self.values_grid[row][col] > 0:
+            return self.fill_grid(row, col + 1)
+        # Shuffle available numbers to choose
+        random.shuffle(self.number_list)
+        for value in self.number_list:
+            # Check if it is possible to insert this value
+            if self.check_grid(row, col, value):
+                # Assign value
+                self.values_grid[row][col] = value
+
+                if self.fill_grid(row, col + 1):
+                    return True
+            
+            self.values_grid[row][col] = 0
+
+        return False
+
+    def draw_grid(self):
+        for row in self.values_grid:
+            print(row)
+
+    def algorithm(self):
+        self.initialize_grid()
+        # row, col = self.find_next_empty()
+        # print(row, col)
+        if self.fill_grid(0, 0):
+            return True
+        else:
+            return False
+
 
 class Game:
     def __init__(self, width = 500, height = 700):
@@ -222,6 +311,7 @@ class Game:
         self.positions = {}
         self.info_positions = {}
         self.delta = 0
+        self.filled_grid = None
         self.run()
 
     def display_setup(self):
@@ -246,13 +336,17 @@ class Game:
             start_x += 50
         
     def initialize_content(self):
+        self.filled_grid = SudokuGenerator()
         self.grid = Grid(500, 50, 50, self.window)
         self.fields = []
         self.info_fields = []
         for i in range(self.grid.rows):
             whole_row = []
             for j in range(self.grid.cols):
-                field = Field(50, ((i + 1) * 50), ((j + 1) * 50), 0, self.window, True)
+                if self.filled_grid.solvable:
+                    field = Field(50, ((i + 1) * 50), ((j + 1) * 50), self.filled_grid.values_grid[i][j], self.window, True)
+                else:
+                    field = Field(50, ((i + 1) * 50), ((j + 1) * 50), 0, self.window, True)
                 whole_row.append(field)
             self.fields.append(whole_row)
         self.cursor = Cursor(50, 1, self.window, self.positions)
@@ -320,11 +414,18 @@ class Game:
             else:
                 self.fields[temp_pos - 1][row].value = self.cursor.value_to_insert
 
+    def first_check(self):
+        for info_field in self.info_fields:
+            info_field.update_quantity(self.fields)
+            print(f"Number: {info_field.value} | Quantity: {info_field.quantity} | Available: {info_field.available}")
+
     def run(self):
         self.display_setup()
         self.initialize_content()
         running = True
         clock = pygame.time.Clock()
+
+        self.first_check()
         while running:
             pygame.time.delay(50)
             clock.tick(10)
@@ -354,5 +455,6 @@ class Game:
 
 if __name__ == "__main__":
     g = Game()
-
+    # s = SudokuGenerator()
+    # s.algorithm()
 
