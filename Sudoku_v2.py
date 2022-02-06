@@ -1,4 +1,6 @@
+from itertools import count
 from threading import local
+from numpy import diff
 import pygame
 import time
 from datetime import datetime
@@ -79,6 +81,7 @@ class Field(Square):
         else:
             text = self.font.render(str(self.value), True, self.font_color)
         textRect = text.get_rect()
+        # textRect.center = (self.pos_x, self.pos_y - 2)
         textRect.center = (self.pos_x, self.pos_y - 2)
         self.window.blit(text, textRect)
 
@@ -215,14 +218,17 @@ class Cursor():
 
 
 class SudokuGenerator:
-    def __init__(self):
+    def __init__(self, difficulty_level = 1):
         self.values_grid = []
         self.grid_to_solve = []
+        self.empty_fields_positions = []
         self.number_list = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.counter = 0
         self.size = 9
+        self.difficulty_level = difficulty_level
         if self.algorithm():
             self.solvable = True
+            self.prepare_grid()
         else:
             self.solvable = False
 
@@ -252,10 +258,27 @@ class SudokuGenerator:
 
     def prepare_grid(self):
         self.grid_to_solve = self.values_grid
+        prepared_positions = False
+        limit = 0
+        if self.difficulty_level == 1:
+            limit = 16
+        elif self.difficulty_level == 2:
+            limit = 32
+        else:
+            limit = 48
+        count_positions = 0
+        while not prepared_positions:
+            if count_positions == limit:
+                prepared_positions = True
+            else:
+                pos = random.randint(0,80)
+                if pos not in self.empty_fields_positions:
+                    self.empty_fields_positions.append(pos)
+                    count_positions += 1
         # 3 Levels of difficulty
-        # 80% filled
-        # 60% filled
-        # 40% filled
+        # 80% filled - 64/81 fields filled - 17 empty
+        # 60% filled - 48/81 fields filled - 33 empty
+        # 40% filled - 32/81 fields filled - 49 empty
         # Clear random cells one by one - simultanously check if the grid is still solvable
 
     def fill_grid(self, row, col):
@@ -312,6 +335,10 @@ class Game:
         self.info_positions = {}
         self.delta = 0
         self.filled_grid = None
+        self.displayed_fields = []
+        self.displayed_fields_row = 0
+        self.displayed_fields_col = 0
+        # self.first_display_position = [0, 0]
         self.run()
 
     def display_setup(self):
@@ -336,17 +363,23 @@ class Game:
             start_x += 50
         
     def initialize_content(self):
-        self.filled_grid = SudokuGenerator()
+        self.filled_grid = SudokuGenerator(1)
         self.grid = Grid(500, 50, 50, self.window)
         self.fields = []
         self.info_fields = []
+        position = 0
         for i in range(self.grid.rows):
             whole_row = []
             for j in range(self.grid.cols):
                 if self.filled_grid.solvable:
-                    field = Field(50, ((i + 1) * 50), ((j + 1) * 50), self.filled_grid.values_grid[i][j], self.window, True)
+                    # print(self.filled_grid.values_grid[i][j])
+                    if position in self.filled_grid.empty_fields_positions:
+                        field = Field(50, ((j + 1) * 50), ((i + 1) * 50), 0, self.window, True)
+                    else:
+                        field = Field(50, ((j + 1) * 50), ((i + 1) * 50), self.filled_grid.values_grid[i][j], self.window, True)
                 else:
-                    field = Field(50, ((i + 1) * 50), ((j + 1) * 50), 0, self.window, True)
+                    field = Field(50, ((j + 1) * 50), ((i + 1) * 50), 0, self.window, True)
+                position += 1
                 whole_row.append(field)
             self.fields.append(whole_row)
         self.cursor = Cursor(50, 1, self.window, self.positions)
@@ -362,10 +395,27 @@ class Game:
         self.info.draw()
         self.cursor.draw()
         self.grid.draw()
+        self.displayed_fields.append((self.displayed_fields_col, self.displayed_fields_row))
+        # Numbers to choose display
+        for info_field in self.info_fields:
+            info_field.draw()
+        # Gradual grid display
         for i, row in enumerate(self.fields):
-            self.info_fields[i].draw()
-            for field in row:
-                field.draw()
+            for j, field in enumerate(row):
+                if (j, i) in self.displayed_fields:
+                    field.draw()
+        
+        if self.displayed_fields_col == 8 and self.displayed_fields_row < 8:
+            self.displayed_fields_row += 1
+            self.displayed_fields_col = 0
+        elif self.displayed_fields_col < 8:
+            self.displayed_fields_col += 1
+        elif self.displayed_fields_col == 8 and self.displayed_fields_row == 8:
+            # Regular grid display
+            for i, row in enumerate(self.fields):
+                for j, field in enumerate(row):
+                    field.draw()
+        
         self.info.draw()
         pygame.display.update()
 
@@ -410,9 +460,9 @@ class Game:
                 row = 8
             temp_pos = self.cursor.pos_num % 9
             if temp_pos == 0:
-                self.fields[8][row].value = self.cursor.value_to_insert
+                self.fields[row][8].value = self.cursor.value_to_insert
             else:
-                self.fields[temp_pos - 1][row].value = self.cursor.value_to_insert
+                self.fields[row][temp_pos - 1].value = self.cursor.value_to_insert
 
     def first_check(self):
         for info_field in self.info_fields:
