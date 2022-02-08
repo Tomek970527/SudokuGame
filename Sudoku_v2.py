@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import messagebox
 from abc import ABC, abstractmethod
 import random
+import collections
 
 
 pygame.init()
@@ -307,6 +308,13 @@ class SudokuGenerator:
 
         return False
 
+    def compare_grid(self, actual_grid):
+        for i in range(9):
+            temp_values = [int(field.value) for field in actual_grid[i]]
+            if not (collections.Counter(self.values_grid[i]) == collections.Counter(temp_values)):
+                return False
+        return True
+
     def draw_grid(self):
         for row in self.values_grid:
             print(row)
@@ -319,6 +327,36 @@ class SudokuGenerator:
             return True
         else:
             return False
+
+
+class Menu:
+    def __init__(self, width, height, window):
+        self.width = width
+        self.height = height
+        self.font = pygame.font.SysFont('arial', 30)
+        self.font_color = ORANGE
+        self.window = window
+
+    def draw(self):
+        text = self.font.render("PRESS ENTER", True, self.font_color)
+        textRect = text.get_rect()
+        textRect.center = (self.height // 2, self.width // 2)
+        self.window.blit(text, textRect)
+
+
+class GameEnd:
+    def __init__(self, width, height, window):
+        self.width = width
+        self.height = height
+        self.font = pygame.font.SysFont('arial', 30)
+        self.font_color = ORANGE
+        self.window = window
+
+    def draw(self):
+        text = self.font.render("PRESS ESCAPE", True, self.font_color)
+        textRect = text.get_rect()
+        textRect.center = (self.height // 2, self.width // 2)
+        self.window.blit(text, textRect)
 
 
 class Game:
@@ -335,6 +373,8 @@ class Game:
         self.info_positions = {}
         self.delta = 0
         self.filled_grid = None
+        self.menu = None
+        self.ending = None
         self.displayed_fields = []
         self.displayed_fields_row = 0
         self.displayed_fields_col = 0
@@ -363,6 +403,8 @@ class Game:
             start_x += 50
         
     def initialize_content(self):
+        self.menu = Menu(self.width, self.height, self.window)
+        self.ending = GameEnd(self.width, self.height, self.window)
         self.filled_grid = SudokuGenerator(1)
         self.grid = Grid(500, 50, 50, self.window)
         self.fields = []
@@ -374,11 +416,11 @@ class Game:
                 if self.filled_grid.solvable:
                     # print(self.filled_grid.values_grid[i][j])
                     if position in self.filled_grid.empty_fields_positions:
-                        field = Field(50, ((j + 1) * 50), ((i + 1) * 50), 0, self.window, True)
+                        field = Field(50, ((j + 1) * 50), ((i + 1) * 50), 0, self.window, False)
                     else:
                         field = Field(50, ((j + 1) * 50), ((i + 1) * 50), self.filled_grid.values_grid[i][j], self.window, True)
                 else:
-                    field = Field(50, ((j + 1) * 50), ((i + 1) * 50), 0, self.window, True)
+                    field = Field(50, ((j + 1) * 50), ((i + 1) * 50), 0, self.window, False)
                 position += 1
                 whole_row.append(field)
             self.fields.append(whole_row)
@@ -388,7 +430,7 @@ class Game:
             info_field = InfoField(50, 50 * (i + 1), 550, i + 1, self.window, True, True)
             self.info_fields.append(info_field)
 
-    def redraw_content(self):
+    def redraw_game_content(self):
         self.window.fill((211, 211, 211))
         self.grid.draw_background()
         self.info.draw_background()
@@ -419,6 +461,16 @@ class Game:
         self.info.draw()
         pygame.display.update()
 
+    def redraw_menu(self):
+        self.window.fill((211, 211, 211))
+        self.menu.draw()
+        pygame.display.update()
+
+    def redraw_ending(self):
+        self.window.fill((211, 211, 211))
+        self.ending.draw()
+        pygame.display.update()
+
     def user_actions(self):
         keys = pygame.key.get_pressed()
         for key in keys:
@@ -436,8 +488,6 @@ class Game:
             self.cursor.move_cursor(self.delta)
 
     def insert_value(self):
-        # self.cursor.pos_num
-        # self.cursor.value_to_insert
         if self.cursor.value_to_insert != 0:
             temp_row = self.cursor.pos_num / 9
             if temp_row <= 1:
@@ -459,52 +509,91 @@ class Game:
             elif 8 < temp_row <= 9:
                 row = 8
             temp_pos = self.cursor.pos_num % 9
-            if temp_pos == 0:
+            if temp_pos == 0 and not self.fields[row][8].const_value:
                 self.fields[row][8].value = self.cursor.value_to_insert
-            else:
+            elif not self.fields[row][temp_pos - 1].const_value:
                 self.fields[row][temp_pos - 1].value = self.cursor.value_to_insert
 
-    def first_check(self):
+    def quantity_check(self):
         for info_field in self.info_fields:
             info_field.update_quantity(self.fields)
-            print(f"Number: {info_field.value} | Quantity: {info_field.quantity} | Available: {info_field.available}")
+
+    def menu_stage(self):
+        self.redraw_menu()
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    return False    
+        return True
+
+    def game_stage(self):
+        self.redraw_game_content()
+        self.quantity_check()
+        if self.filled_grid.compare_grid(self.fields):
+            return False
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if pygame.mouse.get_pressed(3)[0]:
+                    self.cursor.value_to_insert = 0
+                    self.cursor.selected = True
+                    pygame.display.update()
+                    self.cursor.check_position(pygame.mouse.get_pos(), self.info_fields)
+                    self.insert_value()
+                elif pygame.mouse.get_pressed(3)[2]:
+                    self.cursor.selected = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    pass
+        
+        return True
+        
+    def end_game_stage(self):
+        self.redraw_ending()
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return False   
+        return True
 
     def run(self):
         self.display_setup()
         self.initialize_content()
         running = True
+        menu_opened = True
+        game_running = True
         clock = pygame.time.Clock()
-
-        self.first_check()
         while running:
-            pygame.time.delay(50)
-            clock.tick(10)
-            self.redraw_content()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if pygame.mouse.get_pressed(3)[0]:
-                        self.cursor.value_to_insert = 0
-                        self.cursor.selected = True
-                        pygame.display.update()
-                        self.cursor.check_position(pygame.mouse.get_pos(), self.info_fields)
-                        self.insert_value()
-                        if self.cursor.value_to_insert != 0:
-                            for info_field in self.info_fields:
-                                info_field.update_quantity(self.fields)
-                                print(f"Number: {info_field.value} | Quantity: {info_field.quantity} | Available: {info_field.available}")
-                    elif pygame.mouse.get_pressed(3)[2]:
-                        self.cursor.selected = False
-                    elif event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_RETURN:
-                            pass
-                if running == False:
-                    pygame.quit()
-                # self.user_actions()
+            clock.tick(100)
+            if menu_opened:
+                menu_opened = self.menu_stage()
+            elif not menu_opened and game_running:
+                game_running = self.game_stage()
+            elif not game_running:
+                running = self.end_game_stage()
+            # self.redraw_content()
+            # self.quantity_check()
+            # if self.filled_grid.compare_grid(self.fields):
+            #     running = False
+            # for event in pygame.event.get():
+            #     if event.type == pygame.QUIT:
+            #         running = False
+            #     elif event.type == pygame.MOUSEBUTTONDOWN:
+            #         if pygame.mouse.get_pressed(3)[0]:
+            #             self.cursor.value_to_insert = 0
+            #             self.cursor.selected = True
+            #             pygame.display.update()
+            #             self.cursor.check_position(pygame.mouse.get_pos(), self.info_fields)
+            #             self.insert_value()
+            #         elif pygame.mouse.get_pressed(3)[2]:
+            #             self.cursor.selected = False
+            #         elif event.type == pygame.KEYDOWN:
+            #             if event.key == pygame.K_RETURN:
+            #                 pass
+        
 
 if __name__ == "__main__":
     g = Game()
-    # s = SudokuGenerator()
-    # s.algorithm()
+
 
